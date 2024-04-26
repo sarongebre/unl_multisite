@@ -55,18 +55,6 @@ function unl_multisite_help($path, $arg) {
   }
 }
 
-/**
- * Implementation of hook_permission().
- */
-function unl_multisite_permission() {
-  return array(
-    'unl site creation' => array(
-      'title' => t('Site Creation'),
-      'description' => t('Create new Drupal sites using the UNL profile.'),
-      'restrict access' => TRUE,
-     ),
-  );
-}
 
 /**
  * Implements hook_element_info_alter().
