@@ -13,18 +13,18 @@ function unl_multisite_schema() {
       'd7_site_id' => array(
         'type'     => 'varchar',
         'length'   => 255,
-      ),
-      'd7_site_path' => array(
-        'type'     => 'varchar',
-        'length'   => 255,
         'default'  => null,
-        'after'   => 'site_path',
       ),
       'site_path' => array(
         'type'     => 'varchar',
         'length'   => 255,
         'not null' => TRUE,
         'default'  => '',
+      ),
+      'd7_site_path' => array(
+        'type'     => 'varchar',
+        'length'   => 255,
+        'default'  => null,
       ),
       'uri' => array(
         'type'     => 'varchar',
