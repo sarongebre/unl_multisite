@@ -70,7 +70,7 @@ class UnlMultisiteList extends FormBase {
         'field' => 'site_path',
       ),
       'd7_uri' => array(
-        'data' => t('D7 Path'),
+        'data' => t('D7 site path'),
         'field' => 'd7_site_path',
       ),
       'name' => array(
@@ -82,8 +82,8 @@ class UnlMultisiteList extends FormBase {
         'field' => 'site_id',
       ),
       'd7_site_id' => array(
-        'data' => t('Drupal 7 ID'),
-        'field' => 'drupal_seven_id',
+        'data' => t('D7 site ID'),
+        'field' => 'd7_site_id',
       ),
       'access' =>  array(
         'data' => t('Last access'),
@@ -101,7 +101,7 @@ class UnlMultisiteList extends FormBase {
     );
 
     $sites = $this->databaseConnection->select('unl_sites', 's')
-      ->fields('s', array('site_id', 'drupal_seven_id', 'site_path', 'd7_site_path', 'uri', 'installed'))
+      ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'd7_site_path', 'uri', 'installed'))
       ->execute()
       ->fetchAll();
 
@@ -137,7 +137,7 @@ class UnlMultisiteList extends FormBase {
         'd7_uri' => $d7_url_data,
         'name' => array('#plain_text' => (isset($site->name) ? $site->name : '')),
         'site_id' => array('#plain_text' => (isset($site->site_id) ? $site->site_id : null)),
-        'd7_site_id' => array('#plain_text' => (isset($site->drupal_seven_id) ? $site->drupal_seven_id : 'Not set')),
+        'd7_site_id' => array('#plain_text' => (isset($site->d7_site_id) ? $site->d7_site_id : 'Not set')),
         'access' => array('#plain_text' => (isset($site->access) ? $site->access : 0)),
         'last_edit' => array('#plain_text' => (isset($site->last_edit) ? $site->last_edit : '')),
         'installed' => array('#plain_text' => $this->_unl_get_install_status_text($site->installed)),
@@ -252,12 +252,11 @@ class UnlMultisiteList extends FormBase {
       $site_last_edit = $database_connection->query("SELECT FROM_UNIXTIME(MAX(changed)) AS most_recent_node_update FROM node_field_data");
       $site_last_edit  = $site_last_edit->fetchField();
 
-      Database::setActiveConnection('default');
-
       $row->name = $name;
       $row->access = (int) $access;
       $row->last_edit = $site_last_edit;
     }
+    Database::setActiveConnection('default');
   }
 
   /**
@@ -297,6 +296,14 @@ class UnlMultisiteList extends FormBase {
           uasort($rows, function ($first_comparing_value, $second_comparing_value) {return $second_comparing_value['access']['#plain_text']  - $first_comparing_value['access']['#plain_text'];});
         }
         break;
+      case 'last_edit':
+        if ($sort == 'asc') {
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strtotime($first_comparing_value['last_edit']['#plain_text']) - strtotime($second_comparing_value['last_edit']['#plain_text']);});
+        }
+        else {
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strtotime($second_comparing_value['last_edit']['#plain_text'])  - strtotime($first_comparing_value['last_edit']['#plain_text']);});
+        }
+          break;
       case 'site_id':
         if ($sort == 'asc') {
           uasort($rows, function ($first_comparing_value, $second_comparing_value) {return $first_comparing_value['site_id']['#plain_text'] - $second_comparing_value['site_id']['#plain_text'];});
@@ -305,7 +312,7 @@ class UnlMultisiteList extends FormBase {
           uasort($rows, function ($second_comparing_value, $first_comparing_value, ) {return $second_comparing_value['site_id']['#plain_text'] - $first_comparing_value['site_id']['#plain_text'];});
         }
         break;
-      case 'drupal_seven_id':
+      case 'd7_site_id':
         if ($sort == 'asc') {
           uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strnatcmp($first_comparing_value['d7_site_id']['#plain_text'], $second_comparing_value['d7_site_id']['#plain_text']);});
         }

@@ -101,7 +101,7 @@ class UnlMultisiteEdit extends ConfirmFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state, $site_id = NULL) {
     $site_data = $this->databaseConnection->select('unl_sites', 's')
-      ->fields('s', array('site_id', 'drupal_seven_id', 'site_path','d7_site_path', 'uri', 'installed'))
+      ->fields('s', array('site_id', 'd7_site_id', 'site_path','d7_site_path', 'uri', 'installed'))
       ->condition('site_id', $site_id)
       ->execute()
       ->fetchAll();
@@ -118,10 +118,10 @@ class UnlMultisiteEdit extends ConfirmFormBase {
           '#disabled' => TRUE,
           '#value' => $site->site_id,
         );
-        $form['drupal_seven_id'] = array(
+        $form['d7_site_id'] = array(
           '#type' => 'textfield',
           '#title' => $this->t('Drupal 7 ID'),
-          '#default_value' => $site->drupal_seven_id,
+          '#default_value' => $site->d7_site_id,
           '#description'=> 'Accepts a numerical value and/or a brief description',
         );
         $form['d7_site_path'] = array(
@@ -174,7 +174,7 @@ class UnlMultisiteEdit extends ConfirmFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $drupal_seven_id = $form_state->getValue('drupal_seven_id');
+    $d7_site_id = $form_state->getValue('d7_site_id');
     $site_id = $form_state->getValue('site_id');
     $site_path = $form_state->getValue('site_path');
     $d7_site_path = $form_state->getValue('d7_site_path');
@@ -182,7 +182,7 @@ class UnlMultisiteEdit extends ConfirmFormBase {
 
     $query = $this->databaseConnection->update('unl_sites');
     $query->fields([
-      'drupal_seven_id' => $drupal_seven_id,
+      'd7_site_id' => $d7_site_id,
       'site_path' => $site_path,
       'd7_site_path' => $d7_site_path,
     ]);

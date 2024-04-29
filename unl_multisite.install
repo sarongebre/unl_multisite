@@ -10,7 +10,7 @@ function unl_multisite_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
-      'drupal_seven_id' => array(
+      'd7_site_id' => array(
         'type'     => 'varchar',
         'length'   => 255,
       ),
