@@ -88,3 +88,26 @@ function unl_multisite_schema() {
 
   return $schema;
 }
+
+/**
+ * Adds the 'd7_site_id' and 'd7_site_path' fields to the unl_sites table.
+ */
+function unl_multisite_update_8001() {
+  $d7_site_id = [
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => FALSE,
+    'default' => NULL,
+  ];
+  $d7_site_path = [
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => FALSE,
+    'default' => NULL,
+  ];
+
+  $schema = Database::getConnection()->schema();
+  $schema->addField('unl_sites', 'd7_site_id', $d7_site_id);
+  $schema->addField('unl_sites', 'd7_site_path', $d7_site_path);
+}
+

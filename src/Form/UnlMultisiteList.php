@@ -3,16 +3,16 @@
 namespace Drupal\unl_multisite\Form;
 
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\Database;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Utility\TableSort;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
-use \Drupal\Core\Database\Database;
 
 /**
- * Configure book settings for this site.
+ * List of multisite installations.
  */
 class UnlMultisiteList extends FormBase {
 
@@ -238,13 +238,13 @@ class UnlMultisiteList extends FormBase {
       $site_info_blob_data = $site_info_blob_data->fetchAll();
       $site_info_blob_data = $site_info_blob_data[0]->data;
 
-      if($site_info_blob_data) {
+      if ($site_info_blob_data) {
         $site_data_blob_unseralized = unserialize($site_info_blob_data);
         $name = $site_data_blob_unseralized['name'];
       } else {
         $name = 'Error - site name could not be retrieved';
       }
-      //Retrieve the last accessed date by a site admin.
+      // Retrieve the last accessed date by a Site Admin.
       $access = $database_connection->query("SELECT u.access FROM {users_field_data} u, {user__roles} r WHERE u.uid = r.entity_id AND u.access > 0 AND r.roles_target_id = 'site_admin' ORDER BY u.access DESC");
       $access  = $access->fetchField();
 

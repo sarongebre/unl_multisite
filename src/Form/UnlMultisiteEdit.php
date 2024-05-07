@@ -11,7 +11,7 @@ use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Site deletion confirmation.
+ * Site information edit form.
  */
 class UnlMultisiteEdit extends ConfirmFormBase {
 
@@ -73,22 +73,6 @@ class UnlMultisiteEdit extends ConfirmFormBase {
     return new Url('unl_multisite.site_list');
   }
 
-
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getFormName() {
-    return 'delete';
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getFormId() {
-    return 'unl_multisite_site_edit';
-  }
-
   /**
    * {@inheritdoc}
    */
@@ -105,11 +89,12 @@ class UnlMultisiteEdit extends ConfirmFormBase {
       ->condition('site_id', $site_id)
       ->execute()
       ->fetchAll();
-    if(count($site_data) > 1 ) {
+    if (count($site_data) > 1) {
       $form['error_display'] = [
         '#markup' => '<p>Can not edit site. More than one site has this site ID:' . $site_id . '</p>',
       ];
-    } else {
+    }
+    else {
 
       foreach ($site_data as $site) {
         $form['site_id'] = array(
