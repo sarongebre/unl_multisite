@@ -9,6 +9,7 @@ use Drupal\Core\Url;
 use Drupal\Core\Utility\TableSort;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use \Drupal\Core\Database\Database;
 
 /**
  * Configure book settings for this site.
@@ -68,13 +69,29 @@ class UnlMultisiteList extends FormBase {
         'data' => t('Default path'),
         'field' => 'site_path',
       ),
+      'd7_uri' => array(
+        'data' => t('D7 site path'),
+        'field' => 'd7_site_path',
+      ),
       'name' => array(
         'data' => t('Site name'),
         'field' => 'name',
       ),
+      'id' => array(
+        'data' => t('Site ID'),
+        'field' => 'site_id',
+      ),
+      'd7_site_id' => array(
+        'data' => t('D7 site ID'),
+        'field' => 'd7_site_id',
+      ),
       'access' =>  array(
         'data' => t('Last access'),
         'field' => 'access',
+      ),
+      'last_edit' =>  array(
+        'data' => t('Last edit'),
+        'field' => 'last_edit',
       ),
       'installed' => array(
         'data' => t('Status'),
@@ -84,7 +101,7 @@ class UnlMultisiteList extends FormBase {
     );
 
     $sites = $this->databaseConnection->select('unl_sites', 's')
-      ->fields('s', array('site_id', 'site_path', 'uri', 'installed'))
+      ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'd7_site_path', 'uri', 'installed'))
       ->execute()
       ->fetchAll();
 
@@ -99,14 +116,30 @@ class UnlMultisiteList extends FormBase {
     );
 
     foreach ($sites as $site) {
+      //Check if there is an existing d7 path setup
+      if(isset($site->d7_site_path) && $site->d7_site_path !== '' ) {
+        $site_uri = $site->d7_site_path;
+        $d7_url_data = array(
+        '#type' => 'link',
+        '#title' => $site->d7_site_path,
+        '#url' => Url::fromUri($site_uri),
+        '#required' => FALSE, // Setting the title field as not required
+        );
+      } else {
+        $d7_url_data = array('#plain_text' => 'No Path Recorded for D7');
+      }
       $rows[$site->site_id] = array(
         'uri' => array(
           '#type' => 'link',
           '#title' => $site->site_path,
           '#url' => Url::fromUserInput('/' . $site->site_path),
         ),
+        'd7_uri' => $d7_url_data,
         'name' => array('#plain_text' => (isset($site->name) ? $site->name : '')),
+        'site_id' => array('#plain_text' => (isset($site->site_id) ? $site->site_id : null)),
+        'd7_site_id' => array('#plain_text' => (isset($site->d7_site_id) ? $site->d7_site_id : 'Not set')),
         'access' => array('#plain_text' => (isset($site->access) ? $site->access : 0)),
+        'last_edit' => array('#plain_text' => (isset($site->last_edit) ? $site->last_edit : '')),
         'installed' => array('#plain_text' => $this->_unl_get_install_status_text($site->installed)),
         'operations' => array(
           'data' => array(
@@ -122,7 +155,7 @@ class UnlMultisiteList extends FormBase {
               ),
               'edit' => array(
                 'title' => t('edit site'),
-                'url' => Url::fromRoute('unl_multisite.site_list', array()),//'admin/sites/unl/' . $site->site_id . '/edit',
+                'url' => Url::fromRoute('unl_multisite.site_edit', ['site_id' => $site->site_id]),//'admin/sites/unl/' . $site->site_id . '/edit',
               ),
               'delete' => array(
                 'title' => t('delete site'),
@@ -136,17 +169,16 @@ class UnlMultisiteList extends FormBase {
 
     // Sort the table data accordingly with a custom sort function
     $order = TableSort::getOrder($header, $this->request);
-    $sort = TableSort::getOrder($header, $this->request);
+    $sort = TableSort::getsort($header, $this->request);
     $rows = $this->unl_sites_sort($rows, $order, $sort);
-
     // Now that the access timestamp has been used to sort, convert it to something readable
-    foreach ($rows as $key=>$row) {
-      $rows[$key]['access'] = array('#plain_text' =>
-        isset($row['access']) && $row['access']['#plain_text'] > 0
-          ? t('@time ago', array('@time' => \Drupal::service("date.formatter")->formatInterval(REQUEST_TIME - $row['access']['#plain_text'])))
-          : t('never')
-      );
-    }
+        foreach ($rows as $key=>$row) {
+          $rows[$key]['access'] = array('#plain_text' =>
+            isset($row['access']) && $row['access']['#plain_text'] > 0
+              ? t('@time ago', array('@time' => \Drupal::service("date.formatter")->formatInterval(REQUEST_TIME - $row['access']['#plain_text'])))
+              : t('never')
+          );
+        }
 
     foreach ($rows as $key => $row) {
       $form['unl_sites'][$key] = $row;
@@ -173,10 +205,14 @@ class UnlMultisiteList extends FormBase {
    * @param $sites The result of $this->databaseConnection->select()->fetchAll() on the unl_sites table.
    */
   function unl_add_extra_site_info(&$sites) {
-    // Get all custom made roles (roles other than authenticated, anonymous, administrator)
-    $roles = user_roles(TRUE);
-    unset($roles[\Drupal\Core\Session\AccountInterface::AUTHENTICATED_ROLE]);
-    unset($roles['administrator']);
+    $database_default = [];
+
+    $database_default = Database::getConnection('default');
+    $default_database_connection_details = $database_default->getConnectionOptions();
+    $default_database_connection_username = $default_database_connection_details['username'];
+    $default_database_connection_password = $default_database_connection_details['password'];
+    $default_database_connection_driver = $default_database_connection_details['driver'];
+    $default_database_connection_host = $default_database_connection_details['host'];
 
     foreach ($sites as &$row) {
       // Skip over any sites that aren't properly installed.
@@ -184,38 +220,43 @@ class UnlMultisiteList extends FormBase {
         continue;
       }
 
-      // getenv('HOME') seems to be unset in some configurations when running drush
-      // via shell_exec(). This cause Webmozart\PathUtil\Path\getHomeDirectory() to fail.
-      // Set a value here to force it to work.
-      putenv("HOME=".DRUPAL_ROOT);
-      $command = DRUPAL_ROOT . "/../vendor/drush/drush/drush -y --uri={$row->uri} config:get system.site name --format";
-      $name = shell_exec($command);
-      if (stripos($name, 'Drush command terminated abnormally') !== FALSE) {
-        throw new Exception('Error while fetching site names.');
-      }
+      $site_id = $row->site_id;
+      $sub_site_database = 'project-herbie-' . $site_id;
 
-      // Get last access timestamp (by a non-administrator)
-      if (!empty($roles)) {
-        // Same as the problem above. This isn't the best way to run drush from a module.
-        $path = getenv('PATH');
-        putenv("PATH={$path}:/usr/local/mysql/bin");
+      $subsite_database_connection = array(
+        'database' => $sub_site_database,
+        'username' => $default_database_connection_username,
+        'password' => $default_database_connection_password,
+        'host' => $default_database_connection_host,
+        'driver' => $default_database_connection_driver,
+      );
 
-        $table_users = 'users_field_data u';
-        $table_users_roles = 'user__roles r';
-        $query = 'SELECT u.access FROM '.$table_users.', '.$table_users_roles.' WHERE u.uid = r.entity_id AND u.access > 0 AND r.roles_target_id IN (' . "'".implode("','", array_keys($roles))."'" . ') ORDER BY u.access DESC';
-        $command = DRUPAL_ROOT . "/../vendor/drush/drush/drush -y --uri={$row->uri} sql:query \"{$query}\"";
-        $access = shell_exec($command);
-        if (stripos($access, 'Drush command terminated abnormally') !== FALSE) {
-          throw new Exception('Error while fetching access times.');
-        }
+      Database::addConnectionInfo($sub_site_database, 'default', $subsite_database_connection);
+      $database_connection = Database::getConnection('default', $sub_site_database);
+
+      $site_info_blob_data = $database_connection->query("SELECT data FROM {config} WHERE name = 'system.site'");
+      $site_info_blob_data = $site_info_blob_data->fetchAll();
+      $site_info_blob_data = $site_info_blob_data[0]->data;
+
+      if($site_info_blob_data) {
+        $site_data_blob_unseralized = unserialize($site_info_blob_data);
+        $name = $site_data_blob_unseralized['name'];
+      } else {
+        $name = 'Error - site name could not be retrieved';
       }
-      else {
-        $access = 0;
-      }
+      //Retrieve the last accessed date by a site admin.
+      $access = $database_connection->query("SELECT u.access FROM {users_field_data} u, {user__roles} r WHERE u.uid = r.entity_id AND u.access > 0 AND r.roles_target_id = 'site_admin' ORDER BY u.access DESC");
+      $access  = $access->fetchField();
+
+      //Retrieve the last edited node date.
+      $site_last_edit = $database_connection->query("SELECT FROM_UNIXTIME(MAX(changed)) AS most_recent_node_update FROM node_field_data");
+      $site_last_edit  = $site_last_edit->fetchField();
 
       $row->name = $name;
-      $row->access = (int)$access;
+      $row->access = (int) $access;
+      $row->last_edit = $site_last_edit;
     }
+    Database::setActiveConnection('default');
   }
 
   /**
@@ -223,44 +264,68 @@ class UnlMultisiteList extends FormBase {
    */
   private function unl_sites_sort($rows, $order, $sort) {
     switch ($order['sql']) {
-      case 'uri':
+      case 'site_path':
         if ($sort == 'asc') {
-          usort($rows, function ($a, $b) {return strcasecmp($a['uri']['#title'], $b['uri']['#title']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strcasecmp($first_comparing_value['uri']['#title'], $second_comparing_value['uri']['#title']);});
         }
         else {
-          usort($rows, function ($a, $b) {return strcasecmp($b['uri']['#title'], $a['uri']['#title']);});
+          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['uri']['#title'], $second_comparing_value['uri']['#title']);});
+        }
+        break;
+      case 'd7_site_path':
+        if ($sort == 'asc') {
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strcasecmp($first_comparing_value['d7_uri']['#title'], $second_comparing_value['d7_uri']['#title']);});
+        }
+        else {
+          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['d7_uri']['#title'], $second_comparing_value['d7_uri']['#title']);});
         }
         break;
       case 'name':
         if ($sort == 'asc') {
-          usort($rows, function ($a, $b) {return strcasecmp($a['name'], $b['name']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strcasecmp($first_comparing_value['name']['#plain_text'], $second_comparing_value['name']['#plain_text']);});
         }
         else {
-          usort($rows, function ($a, $b) {return strcasecmp($b['name'], $a['name']);});
+          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['name']['#plain_text'], $second_comparing_value['name']['#plain_text']);});
         }
         break;
       case 'access':
         if ($sort == 'asc') {
-          usort($rows, function ($a, $b) {return strcmp($b['access'], $a['access']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return $first_comparing_value['access']['#plain_text'] - $second_comparing_value['access']['#plain_text'];});
         }
         else {
-          usort($rows, function ($a, $b) {return strcmp($a['access'], $b['access']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return $second_comparing_value['access']['#plain_text']  - $first_comparing_value['access']['#plain_text'];});
         }
         break;
-      case 'last_update':
+      case 'last_edit':
         if ($sort == 'asc') {
-          usort($rows, function ($a, $b) {return strcmp($b['last_update'], $a['last_update']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strtotime($first_comparing_value['last_edit']['#plain_text']) - strtotime($second_comparing_value['last_edit']['#plain_text']);});
         }
         else {
-          usort($rows, function ($a, $b) {return strcmp($a['last_update'], $b['last_update']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strtotime($second_comparing_value['last_edit']['#plain_text'])  - strtotime($first_comparing_value['last_edit']['#plain_text']);});
+        }
+          break;
+      case 'site_id':
+        if ($sort == 'asc') {
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return $first_comparing_value['site_id']['#plain_text'] - $second_comparing_value['site_id']['#plain_text'];});
+        }
+        else {
+          uasort($rows, function ($second_comparing_value, $first_comparing_value, ) {return $second_comparing_value['site_id']['#plain_text'] - $first_comparing_value['site_id']['#plain_text'];});
+        }
+        break;
+      case 'd7_site_id':
+        if ($sort == 'asc') {
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strnatcmp($first_comparing_value['d7_site_id']['#plain_text'], $second_comparing_value['d7_site_id']['#plain_text']);});
+        }
+        else {
+          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return  strnatcmp($first_comparing_value['d7_site_id']['#plain_text'], $second_comparing_value['d7_site_id']['#plain_text']);});
         }
         break;
       case 'installed':
         if ($sort == 'asc') {
-          usort($rows, function ($a, $b) {return strcmp($a['installed'], $b['installed']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strnatcmp($first_comparing_value['installed']['#plain_text']->jsonSerialize(), $second_comparing_value['installed']['#plain_text']->jsonSerialize());});
         }
         else {
-          usort($rows, function ($a, $b) {return strcmp($b['installed'], $a['installed']);});
+          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strnatcmp($first_comparing_value['installed']['#plain_text']->jsonSerialize(), $second_comparing_value['installed']['#plain_text']->jsonSerialize());});
         }
         break;
     }
@@ -296,5 +361,4 @@ class UnlMultisiteList extends FormBase {
     }
     return $installed;
   }
-
 }

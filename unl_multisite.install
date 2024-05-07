@@ -10,11 +10,21 @@ function unl_multisite_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
+      'd7_site_id' => array(
+        'type'     => 'varchar',
+        'length'   => 255,
+        'default'  => null,
+      ),
       'site_path' => array(
         'type'     => 'varchar',
         'length'   => 255,
         'not null' => TRUE,
         'default'  => '',
+      ),
+      'd7_site_path' => array(
+        'type'     => 'varchar',
+        'length'   => 255,
+        'default'  => null,
       ),
       'uri' => array(
         'type'     => 'varchar',
