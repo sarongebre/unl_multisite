@@ -1,5 +1,7 @@
 <?php
 
+use Drupal\Core\Database\Database;
+
 function unl_multisite_schema() {
   $schema = array();
   $schema['unl_sites'] = array(
