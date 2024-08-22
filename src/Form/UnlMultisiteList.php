@@ -115,6 +115,7 @@ class UnlMultisiteList extends FormBase {
       '#empty' => t('No sites have been created.'),
     );
 
+    $rows = [];
     foreach ($sites as $site) {
       //Check if there is an existing d7 path setup
       if(isset($site->d7_site_path) && $site->d7_site_path !== '' ) {
