@@ -85,7 +85,7 @@ class UnlMultisiteEdit extends ConfirmFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state, $site_id = NULL) {
     $site_data = $this->databaseConnection->select('unl_sites', 's')
-      ->fields('s', array('site_id', 'd7_site_id', 'site_path','d7_site_path', 'uri', 'installed'))
+      ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'uri', 'installed'))
       ->condition('site_id', $site_id)
       ->execute()
       ->fetchAll();
@@ -109,34 +109,24 @@ class UnlMultisiteEdit extends ConfirmFormBase {
           '#default_value' => $site->d7_site_id,
           '#description'=> 'Accepts a numerical value and/or a brief description',
         );
-        $form['d7_site_path'] = array(
-          '#type' => 'url',
-          '#title' => $this->t('Drupal 7 Path'),
-          '#default_value' => $site->d7_site_path,
-          '#description'=> 'This field only accepts external URLs, such as https://cms.unl.edu.',
-        );
-
         $form['site_path'] = array(
           '#type' => 'textfield',
           '#title' => $this->t('Site path'),
           '#disabled' => TRUE,
           '#default_value' => $site->site_path,
         );
-
         $form['uri'] = array(
           '#type' => 'textfield',
           '#title' => $this->t('Site URI'),
           '#disabled' => TRUE,
           '#value' => $site->uri,
         );
-
         $form['installed'] = array(
           '#type' => 'textfield',
           '#title' => $this->t('Installed'),
           '#disabled' => TRUE,
           '#value' => ($site->installed == 2 ? 'Installed': 'Not Installed'),
         );
-
       }
     }
 
@@ -162,14 +152,11 @@ class UnlMultisiteEdit extends ConfirmFormBase {
     $d7_site_id = $form_state->getValue('d7_site_id');
     $site_id = $form_state->getValue('site_id');
     $site_path = $form_state->getValue('site_path');
-    $d7_site_path = $form_state->getValue('d7_site_path');
-
 
     $query = $this->databaseConnection->update('unl_sites');
     $query->fields([
       'd7_site_id' => $d7_site_id,
       'site_path' => $site_path,
-      'd7_site_path' => $d7_site_path,
     ]);
     $query->condition('site_id', $site_id);
     $result = $query->execute();

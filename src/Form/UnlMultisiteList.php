@@ -69,10 +69,6 @@ class UnlMultisiteList extends FormBase {
         'data' => t('Default path'),
         'field' => 'site_path',
       ),
-      'd7_uri' => array(
-        'data' => t('D7 site path'),
-        'field' => 'd7_site_path',
-      ),
       'name' => array(
         'data' => t('Site name'),
         'field' => 'name',
@@ -101,7 +97,7 @@ class UnlMultisiteList extends FormBase {
     );
 
     $sites = $this->databaseConnection->select('unl_sites', 's')
-      ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'd7_site_path', 'uri', 'installed'))
+      ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'uri', 'installed'))
       ->execute()
       ->fetchAll();
 
@@ -117,25 +113,12 @@ class UnlMultisiteList extends FormBase {
 
     $rows = [];
     foreach ($sites as $site) {
-      //Check if there is an existing d7 path setup
-      if(isset($site->d7_site_path) && $site->d7_site_path !== '' ) {
-        $site_uri = $site->d7_site_path;
-        $d7_url_data = array(
-        '#type' => 'link',
-        '#title' => $site->d7_site_path,
-        '#url' => Url::fromUri($site_uri),
-        '#required' => FALSE, // Setting the title field as not required
-        );
-      } else {
-        $d7_url_data = array('#plain_text' => 'No Path Recorded for D7');
-      }
       $rows[$site->site_id] = array(
         'uri' => array(
           '#type' => 'link',
           '#title' => $site->site_path,
           '#url' => Url::fromUserInput('/' . $site->site_path),
         ),
-        'd7_uri' => $d7_url_data,
         'name' => array('#plain_text' => (isset($site->name) ? $site->name : '')),
         'site_id' => array('#plain_text' => (isset($site->site_id) ? $site->site_id : null)),
         'd7_site_id' => array('#plain_text' => (isset($site->d7_site_id) ? $site->d7_site_id : 'Not set')),
@@ -271,14 +254,6 @@ class UnlMultisiteList extends FormBase {
         }
         else {
           uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['uri']['#title'], $second_comparing_value['uri']['#title']);});
-        }
-        break;
-      case 'd7_site_path':
-        if ($sort == 'asc') {
-          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strcasecmp($first_comparing_value['d7_uri']['#title'], $second_comparing_value['d7_uri']['#title']);});
-        }
-        else {
-          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['d7_uri']['#title'], $second_comparing_value['d7_uri']['#title']);});
         }
         break;
       case 'name':
