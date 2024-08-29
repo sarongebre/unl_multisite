@@ -23,11 +23,6 @@ function unl_multisite_schema() {
         'not null' => TRUE,
         'default'  => '',
       ),
-      'd7_site_path' => array(
-        'type'     => 'varchar',
-        'length'   => 255,
-        'default'  => null,
-      ),
       'uri' => array(
         'type'     => 'varchar',
         'length'   => 255,
@@ -113,3 +108,28 @@ function unl_multisite_update_8001() {
   $schema->addField('unl_sites', 'd7_site_path', $d7_site_path);
 }
 
+/**
+ * Implements hook_update_N().
+ * Remove 'd7_site_path' field from 'unl_sites' table
+ */
+function unl_multisite_update_8002() {
+    $schema = \Drupal::database()->schema();
+    $table_name = 'unl_sites';
+    $field_name = 'd7_site_path';
+
+    // Check if the field exists before attempting to drop it.
+    if ($schema->fieldExists($table_name, $field_name)) {
+      // Drop the field.
+      $schema->dropField($table_name, $field_name);
+      \Drupal::messenger()->addMessage(t('Field @field has been successfully removed from @table.', [
+        '@field' => $field_name,
+        '@table' => $table_name,
+      ]));
+    }
+    else {
+      \Drupal::messenger()->addMessage(t('Field @field does not exist in @table.', [
+        '@field' => $field_name,
+        '@table' => $table_name,
+      ]), 'warning');
+    }
+  }

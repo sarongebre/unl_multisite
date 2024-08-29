@@ -69,10 +69,6 @@ class UnlMultisiteList extends FormBase {
         'data' => t('Default path'),
         'field' => 'site_path',
       ),
-      'd7_uri' => array(
-        'data' => t('D7 site path'),
-        'field' => 'd7_site_path',
-      ),
       'name' => array(
         'data' => t('Site name'),
         'field' => 'name',
@@ -80,6 +76,10 @@ class UnlMultisiteList extends FormBase {
       'id' => array(
         'data' => t('Site ID'),
         'field' => 'site_id',
+      ),
+      'primary_base_url' => array(
+        'data' => t('Primary base url'),
+        'field' => 'primary_base_url',
       ),
       'd7_site_id' => array(
         'data' => t('D7 site ID'),
@@ -101,7 +101,7 @@ class UnlMultisiteList extends FormBase {
     );
 
     $sites = $this->databaseConnection->select('unl_sites', 's')
-      ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'd7_site_path', 'uri', 'installed'))
+      ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'uri', 'installed'))
       ->execute()
       ->fetchAll();
 
@@ -117,27 +117,15 @@ class UnlMultisiteList extends FormBase {
 
     $rows = [];
     foreach ($sites as $site) {
-      //Check if there is an existing d7 path setup
-      if(isset($site->d7_site_path) && $site->d7_site_path !== '' ) {
-        $site_uri = $site->d7_site_path;
-        $d7_url_data = array(
-        '#type' => 'link',
-        '#title' => $site->d7_site_path,
-        '#url' => Url::fromUri($site_uri),
-        '#required' => FALSE, // Setting the title field as not required
-        );
-      } else {
-        $d7_url_data = array('#plain_text' => 'No Path Recorded for D7');
-      }
       $rows[$site->site_id] = array(
         'uri' => array(
           '#type' => 'link',
           '#title' => $site->site_path,
           '#url' => Url::fromUserInput('/' . $site->site_path),
         ),
-        'd7_uri' => $d7_url_data,
         'name' => array('#plain_text' => (isset($site->name) ? $site->name : '')),
         'site_id' => array('#plain_text' => (isset($site->site_id) ? $site->site_id : null)),
+        'primary_base_url' => array('#plain_text' => (!empty($site->primary_base_url) ? $site->primary_base_url : 'Not set')),
         'd7_site_id' => array('#plain_text' => (isset($site->d7_site_id) ? $site->d7_site_id : 'Not set')),
         'access' => array('#plain_text' => (isset($site->access) ? $site->access : 0)),
         'last_edit' => array('#plain_text' => (isset($site->last_edit) ? $site->last_edit : '')),
@@ -245,6 +233,21 @@ class UnlMultisiteList extends FormBase {
       } else {
         $name = 'Error - site name could not be retrieved';
       }
+
+      $unl_settings_blob_data = $database_connection->query("SELECT data FROM {config} WHERE name = 'unl_system.settings'");
+      $unl_settings_blob_data = $unl_settings_blob_data->fetchAll();
+      // Check if system site configuration settings has been visited for the site
+      if ($unl_settings_blob_data) {
+        $unl_settings_blob_data = $unl_settings_blob_data[0]->data;
+        if ($unl_settings_blob_data) {
+          $unl_settings_data_blob_unseralized = unserialize($unl_settings_blob_data);
+          $primary_base_url = $unl_settings_data_blob_unseralized['primary_base_url'];
+        } else {
+          $primary_base_url = 'Error - primary base url could not be retrieved';
+        }
+      } else {
+        $primary_base_url = 'Not set';
+      }
       // Retrieve the last accessed date by a Site Admin.
       $access = $database_connection->query("SELECT u.access FROM {users_field_data} u, {user__roles} r WHERE u.uid = r.entity_id AND u.access > 0 AND r.roles_target_id = 'site_admin' ORDER BY u.access DESC");
       $access  = $access->fetchField();
@@ -253,6 +256,7 @@ class UnlMultisiteList extends FormBase {
       $site_last_edit = $database_connection->query("SELECT FROM_UNIXTIME(MAX(changed)) AS most_recent_node_update FROM node_field_data");
       $site_last_edit  = $site_last_edit->fetchField();
 
+      $row->primary_base_url = $primary_base_url;
       $row->name = $name;
       $row->access = (int) $access;
       $row->last_edit = $site_last_edit;
@@ -273,12 +277,12 @@ class UnlMultisiteList extends FormBase {
           uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['uri']['#title'], $second_comparing_value['uri']['#title']);});
         }
         break;
-      case 'd7_site_path':
+      case 'primary_base_url':
         if ($sort == 'asc') {
-          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strcasecmp($first_comparing_value['d7_uri']['#title'], $second_comparing_value['d7_uri']['#title']);});
+          uasort($rows, function ($first_comparing_value, $second_comparing_value) {return strcasecmp($first_comparing_value['primary_base_url']['#plain_text'], $second_comparing_value['primary_base_url']['#plain_text']);});
         }
         else {
-          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['d7_uri']['#title'], $second_comparing_value['d7_uri']['#title']);});
+          uasort($rows, function ($second_comparing_value, $first_comparing_value) {return strcasecmp($first_comparing_value['primary_base_url']['#plain_text'], $second_comparing_value['primary_base_url']['#plain_text']);});
         }
         break;
       case 'name':
