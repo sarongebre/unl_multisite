@@ -4,6 +4,7 @@ namespace Drupal\unl_multisite\Form;
 
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Database;
+use Drupal\Core\Database\Query\PagerSelectExtender;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -100,8 +101,15 @@ class UnlMultisiteList extends FormBase {
       'operations' => t('Operations'),
     );
 
+    $site_count = $this->databaseConnection->select('unl_sites', 's')
+      ->fields('s', array('site_id'))
+      ->execute()
+      ->fetchAll();
+
     $sites = $this->databaseConnection->select('unl_sites', 's')
+      ->extend(PagerSelectExtender::class)->limit(200)
       ->fields('s', array('site_id', 'd7_site_id', 'site_path', 'uri', 'installed'))
+      ->orderBy('s.site_path', 'ASC')
       ->execute()
       ->fetchAll();
 
@@ -109,10 +117,13 @@ class UnlMultisiteList extends FormBase {
     $this->unl_add_extra_site_info($sites);
 
     $form['unl_sites'] = array(
-      '#caption' => t('Existing Sites: ') . count($sites),
+      '#caption' => t('Existing Sites: ') . count($site_count),
       '#type' => 'table',
       '#header' => $header,
       '#empty' => t('No sites have been created.'),
+    );
+    $form['pager'] = array(
+      '#type' => 'pager',
     );
 
     $rows = [];
