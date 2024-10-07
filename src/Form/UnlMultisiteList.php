@@ -142,7 +142,7 @@ class UnlMultisiteList extends FormBase {
         'site_id' => array('#plain_text' => (isset($site->site_id) ? $site->site_id : null)),
         'primary_base_url' => array('#plain_text' => (!empty($site->primary_base_url) ? $site->primary_base_url : 'Not set')),
         'd7_site_id' => array('#plain_text' => (isset($site->d7_site_id) ? $site->d7_site_id : 'Not set')),
-        'access' => array('#plain_text' => (isset($site->access) ? $site->access : 0)),
+        'access' => array('#plain_text' => (isset($site->access) ? $site->access : '')),
         'last_edit' => array('#plain_text' => (isset($site->last_edit) ? $site->last_edit : '')),
         'site_admin' => array('#markup' => (isset($site->site_admin) ? $site->site_admin : 'No Site admin')),
         'installed' => array('#plain_text' => $this->_unl_get_install_status_text($site->installed)),
@@ -177,13 +177,13 @@ class UnlMultisiteList extends FormBase {
     $sort = TableSort::getsort($header, $this->request);
     $rows = $this->unl_sites_sort($rows, $order, $sort);
     // Now that the access timestamp has been used to sort, convert it to something readable
-        foreach ($rows as $key=>$row) {
-          $rows[$key]['access'] = array('#plain_text' =>
-            isset($row['access']) && $row['access']['#plain_text'] > 0
-              ? t('@time ago', array('@time' => \Drupal::service("date.formatter")->formatInterval(REQUEST_TIME - $row['access']['#plain_text'])))
-              : t('never')
-          );
-        }
+//        foreach ($rows as $key=>$row) {
+//          $rows[$key]['access'] = array('#plain_text' =>
+//            isset($row['access']) && $row['access']['#plain_text'] > 0
+//              ? t('@time ago', array('@time' => \Drupal::service("date.formatter")->formatInterval(REQUEST_TIME - $row['access']['#plain_text'])))
+//              : t('never')
+//          );
+//        }
 
     foreach ($rows as $key => $row) {
       $form['unl_sites'][$key] = $row;
@@ -265,11 +265,11 @@ class UnlMultisiteList extends FormBase {
         $primary_base_url = 'Not set';
       }
       // Retrieve the last accessed date by a Site Admin.
-      $access = $database_connection->query("SELECT u.access FROM {users_field_data} u, {user__roles} r WHERE u.uid = r.entity_id AND u.access > 0 AND r.roles_target_id = 'site_admin' ORDER BY u.access DESC");
+      $access = $database_connection->query("SELECT FROM_UNIXTIME(MAX(u.access), '%Y-%m-%d') FROM {users_field_data} u, {user__roles} r WHERE u.uid = r.entity_id AND u.access > 0 AND r.roles_target_id = 'site_admin' ORDER BY u.access DESC");
       $access  = $access->fetchField();
 
       //Retrieve the last edited node date.
-      $site_last_edit = $database_connection->query("SELECT FROM_UNIXTIME(MAX(changed)) AS most_recent_node_update FROM node_field_data");
+      $site_last_edit = $database_connection->query("SELECT FROM_UNIXTIME(MAX(changed), '%Y-%m-%d') AS most_recent_node_update FROM node_field_data");
       $site_last_edit  = $site_last_edit->fetchField();
 
       // Retrieve the site's users with the site_admin role.
@@ -282,7 +282,7 @@ class UnlMultisiteList extends FormBase {
 
       $row->primary_base_url = $primary_base_url;
       $row->name = $name;
-      $row->access = (int) $access;
+      $row->access = $access;
       $row->last_edit = $site_last_edit;
       $row->site_admin = $site_admin_list;
     }
