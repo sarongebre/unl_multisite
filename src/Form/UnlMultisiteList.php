@@ -94,6 +94,10 @@ class UnlMultisiteList extends FormBase {
         'data' => t('Last edit'),
         'field' => 'last_edit',
       ),
+      'site_admin' =>  array(
+        'data' => t('Site admin'),
+        'field' => 'site_admin',
+      ),
       'installed' => array(
         'data' => t('Status'),
         'field' => 'installed',
@@ -140,6 +144,7 @@ class UnlMultisiteList extends FormBase {
         'd7_site_id' => array('#plain_text' => (isset($site->d7_site_id) ? $site->d7_site_id : 'Not set')),
         'access' => array('#plain_text' => (isset($site->access) ? $site->access : 0)),
         'last_edit' => array('#plain_text' => (isset($site->last_edit) ? $site->last_edit : '')),
+        'site_admin' => array('#markup' => (isset($site->site_admin) ? $site->site_admin : 'No Site admin')),
         'installed' => array('#plain_text' => $this->_unl_get_install_status_text($site->installed)),
         'operations' => array(
           'data' => array(
@@ -267,10 +272,19 @@ class UnlMultisiteList extends FormBase {
       $site_last_edit = $database_connection->query("SELECT FROM_UNIXTIME(MAX(changed)) AS most_recent_node_update FROM node_field_data");
       $site_last_edit  = $site_last_edit->fetchField();
 
+      // Retrieve the site's users with the site_admin role.
+      $site_admin_list = null;
+      $site_admins = $database_connection->query("SELECT u.name FROM {users_field_data} u, {user__roles} r WHERE u.uid = r.entity_id AND r.roles_target_id = 'site_admin' ORDER BY u.name ASC");
+      $site_admins = $site_admins->fetchAllAssoc('name');
+      foreach ($site_admins as $site_admin) {
+        $site_admin_list .= $site_admin->name . '<br>';
+      }
+
       $row->primary_base_url = $primary_base_url;
       $row->name = $name;
       $row->access = (int) $access;
       $row->last_edit = $site_last_edit;
+      $row->site_admin = $site_admin_list;
     }
     Database::setActiveConnection('default');
   }
